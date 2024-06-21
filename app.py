@@ -164,7 +164,7 @@ if 'df' in st.session_state:
     for col in df.columns:
         if col not in exclude_columns:
             first_value = df[col].iloc[0]
-            if not any c.isalpha() for c in str(first_value):
+            if not any(c.isalpha() for c in str(first_value)):
                 df[col] = df[col].apply(lambda x: re.sub(r'[^\d.-]', '', str(x)).split('.')[0])  # Remove decimals
                 df[col] = pd.to_numeric(df[col], errors='coerce')
                 numeric_columns.append(col)
