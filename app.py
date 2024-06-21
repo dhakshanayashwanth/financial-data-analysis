@@ -1,6 +1,3 @@
-# Makes sure no one can see your API
-# Also ensures that no errors are thrown if the API rate limit is hit.
-
 import openai
 import streamlit as st
 import pandas as pd
@@ -11,6 +8,7 @@ import uuid
 import time
 import os
 from dotenv import load_dotenv
+from openai.error import RateLimitError  # Import the specific exception
 
 # Load environment variables from .env file (only for local development)
 load_dotenv()
@@ -96,14 +94,13 @@ def get_insights_from_openai(data_str, model, insight_type, retries=5):
                 ]
             )
             return response['choices'][0]['message']['content']
-        except openai.error.RateLimitError as e:
+        except RateLimitError as e:
             attempt += 1
             wait_time = 2 ** attempt  # Exponential backoff
             st.warning(f"Rate limit reached for {model}. Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
     st.error("Failed to get insights after multiple attempts. Please try again later.")
     return None
-
 
 # Load existing mappings
 mappings = load_mappings()
@@ -167,7 +164,7 @@ if 'df' in st.session_state:
     for col in df.columns:
         if col not in exclude_columns:
             first_value = df[col].iloc[0]
-            if not any(c.isalpha() for c in str(first_value)):
+            if not any c.isalpha() for c in str(first_value):
                 df[col] = df[col].apply(lambda x: re.sub(r'[^\d.-]', '', str(x)).split('.')[0])  # Remove decimals
                 df[col] = pd.to_numeric(df[col], errors='coerce')
                 numeric_columns.append(col)
