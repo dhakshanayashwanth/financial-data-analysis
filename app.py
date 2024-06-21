@@ -1,3 +1,6 @@
+# Makes sure no one can see your API
+# Also ensures that no errors are thrown if the API rate limit is hit.
+
 import openai
 import streamlit as st
 import pandas as pd
@@ -145,8 +148,12 @@ if 'df' in st.session_state:
     date_column = None
     for col in df.columns:
         if re.search(r'date|month|year', col, re.IGNORECASE):
-            date_column = col
-            break
+            try:
+                pd.to_datetime(df[col], errors='raise')
+                date_column = col
+                break
+            except (ValueError, TypeError):
+                continue
 
     # Format the date column to show only the date part
     if date_column:
@@ -213,7 +220,7 @@ if 'df' in st.session_state:
         available_insights = ["General Insights"]
         if any(re.search(r'date|month|year', col, re.IGNORECASE) for col in df.columns):
             available_insights.append("Trend Analysis")
-        if any(re.search(r'gross sales|sales|date|profit', col, re.IGNORECASE) for col in df.columns):
+        if any(re.search(r'gross sales|sales|profit', col, re.IGNORECASE) for col in df.columns):
             available_insights.append("Key Drivers of Revenue Growth")
 
         # Show the dropdown for insight selection
