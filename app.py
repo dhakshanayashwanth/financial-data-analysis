@@ -1,5 +1,5 @@
-# Adds in revenue analysis which was proven to be useful
-# Makes analysis key words not case sensitive
+# Makes sure no one can see your API
+# Also ensures that no errors are thrown if the API rate limit is hit.
 
 import openai
 import streamlit as st
@@ -68,7 +68,7 @@ def reverse_mappings(text, mappings):
     return text
 
 # Function to get insights from OpenAI
-def get_insights_from_openai(data_str, model, insight_type):
+def get_insights_from_openai(data_str, model, insight_type, retries=5):
     prompt = f"Here is the dataset:\n{data_str}\nPlease provide the conclusions and recommendations from this data in concise bullet points. Focus on actionable insights and exclude any basic descriptive analytics or trivial observations. Please don't include anything tied to descriptive analytics."
 
     if insight_type == "Trend Analysis":
@@ -85,19 +85,25 @@ def get_insights_from_openai(data_str, model, insight_type):
                    " Provide detailed insights on which factors contributed most significantly to the increase or decrease in revenue."
                    " Include specific segments, products, or discounts that had the largest impact.")
 
-    try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are an AI data analyst."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response['choices'][0]['message']['content']
-    except openai.error.RateLimitError as e:
-        st.warning(f"Rate limit reached for {model}. Retrying in 10 seconds...")
-        time.sleep(10)
-        return get_insights_from_openai(data_str, model, insight_type)
+    attempt = 0
+    while attempt < retries:
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are an AI data analyst."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response['choices'][0]['message']['content']
+        except openai.error.RateLimitError as e:
+            attempt += 1
+            wait_time = 2 ** attempt  # Exponential backoff
+            st.warning(f"Rate limit reached for {model}. Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+    st.error("Failed to get insights after multiple attempts. Please try again later.")
+    return None
+
 
 # Load existing mappings
 mappings = load_mappings()
@@ -142,8 +148,12 @@ if 'df' in st.session_state:
     date_column = None
     for col in df.columns:
         if re.search(r'date|month|year', col, re.IGNORECASE):
-            date_column = col
-            break
+            try:
+                pd.to_datetime(df[col], errors='raise')
+                date_column = col
+                break
+            except (ValueError, TypeError):
+                continue
 
     # Format the date column to show only the date part
     if date_column:
@@ -210,7 +220,7 @@ if 'df' in st.session_state:
         available_insights = ["General Insights"]
         if any(re.search(r'date|month|year', col, re.IGNORECASE) for col in df.columns):
             available_insights.append("Trend Analysis")
-        if any(re.search(r'gross sales|sales|date|profit', col, re.IGNORECASE) for col in df.columns):
+        if any(re.search(r'gross sales|sales|profit', col, re.IGNORECASE) for col in df.columns):
             available_insights.append("Key Drivers of Revenue Growth")
 
         # Show the dropdown for insight selection
