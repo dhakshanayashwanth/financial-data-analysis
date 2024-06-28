@@ -8,7 +8,7 @@ import uuid
 import time
 import os
 from dotenv import load_dotenv
-from openai.error import RateLimitError  # Import the specific exception
+from openai.error import RateLimitError
 
 # Load environment variables from .env file (only for local development)
 load_dotenv()
@@ -66,15 +66,20 @@ def reverse_mappings(text, mappings):
     return text
 
 # Function to get insights from OpenAI
-def get_insights_from_openai(data_str, model, insight_type, retries=5):
-    prompt = f"Here is the dataset:\n{data_str}\nPlease provide the conclusions and recommendations from this data in concise bullet points. Focus on actionable insights and exclude any basic descriptive analytics or trivial observations. Please don't include anything tied to descriptive analytics."
+def get_insights_from_openai(data_str, model, insight_type, scenario=None, retries=5):
+    prompt = f"Here is the dataset:\n{data_str}\nPlease provide the insights from this data in concise bullet points. Focus on actionable insights and exclude any basic descriptive analytics or trivial observations. Please don't include anything tied to descriptive analytics."
 
-    if insight_type == "Trend Analysis":
+    if insight_type == "General Insights":
+        prompt += (" Provide general insights from the dataset."
+                   " Focus on actionable insights and exclude any basic descriptive analytics or trivial observations."
+                   " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact.")
+
+    elif insight_type == "Trend Analysis":
         prompt += (" Perform a detailed trend analysis focusing on identifying and analyzing trends over time."
                    " Include details such as monthly or quarterly trends, seasonal patterns, and year-over-year comparisons."
                    " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics,"
                    " and provide insights on sales performance by segment and product."
-                   " Provide specific conclusions and actionable recommendations based on the identified trends."
+                   " Provide specific insights based on the identified trends."
                    " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
                    " Please avoid any basic descriptive analytics.")
 
@@ -82,6 +87,19 @@ def get_insights_from_openai(data_str, model, insight_type, retries=5):
         prompt += (" Analyze the dataset to identify the key drivers of revenue growth last month."
                    " Provide detailed insights on which factors contributed most significantly to the increase or decrease in revenue."
                    " Include specific segments, products, or discounts that had the largest impact.")
+        
+    elif insight_type == "What-If Scenario Analysis":
+        change = scenario['change']
+        factor = scenario['factor']
+        prompt += (f" Perform a what-if scenario analysis to evaluate the impact of decreasing the {factor} by {change}%."
+                       " Provide specific and tangible insights on how this decrease would affect the {factor} or any of the other fields in the dataset."
+                       " Avoid generic statements and focus on concrete data-driven insights."
+                       " Ensure the analysis is relevant to a CFO, VP of Finance or Director of Finance, focusing on strategic decisions and business impact."
+                       " Please avoid any basic descriptive analytics."
+                       " Focus only on the impacts without providing any conclusions, recommendations, or key metrics."
+                       " Do not include conclusions, recommendations, or key metrics.")
+
+
 
     attempt = 0
     while attempt < retries:
@@ -215,26 +233,59 @@ if 'df' in st.session_state:
 
         # Determine available insights based on the columns present in the dataset
         available_insights = ["General Insights"]
-        if any(re.search(r'date|month|year', col, re.IGNORECASE) for col in df.columns):
+
+        trend_columns = {'Date', 'Month Number', 'Month Name', 'Year'}
+        if any(col in df.columns for col in trend_columns):
             available_insights.append("Trend Analysis")
-        if any(re.search(r'gross sales|sales|profit', col, re.IGNORECASE) for col in df.columns):
+
+        key_drivers_columns = {'Gross Sales', 'Sales', 'Date', 'Profit'}
+        if any(col in df.columns for col in key_drivers_columns):
             available_insights.append("Key Drivers of Revenue Growth")
+
+        # Determine numeric columns for What-If Scenario Analysis
+        exclude_factors = {'Month Number', 'Month Name', 'Year'}
+        numeric_factors = [col for col in categorized_df.columns if set(categorized_df[col].unique()).issubset({'Below Avg', 'Avg', 'Above Avg'}) and col not in exclude_factors]
+
+        if numeric_factors:
+            available_insights.append("What-If Scenario Analysis")
 
         # Show the dropdown for insight selection
         selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights)
 
-        if selected_insight:
+        scenario = None
+        if selected_insight == "What-If Scenario Analysis":
+            factor = st.selectbox("Select the factor to change:", numeric_factors)
+            change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5)
+            scenario = {"factor": factor, "change": change}
+
+        if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
             if st.button("Perform Analysis"):
+                # Initialize progress bar
+                progress_bar = st.progress(0)
+
                 # Prepare the data to send to ChatGPT for insights
                 with st.spinner('Generating insights, please wait...'):
                     combined_df_str = combined_df.to_csv(index=False)
-                    insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight)
 
-                    st.markdown("**Conclusions and Recommendations**")
+                    for i in range(0, 50, 5):
+                        time.sleep(0.5)  # Simulating data processing time
+                        progress_bar.progress(i)
+
+                    insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
+                    
+                    for i in range(50, 100, 5):
+                        time.sleep(0.5)  # Simulating data processing time
+                        progress_bar.progress(i)
+
+                    if selected_insight != "What-If Scenario Analysis":
+                        st.markdown("**Conclusions and Recommendations**")
 
                     # Reverse the mappings in the insights
                     decoded_insights = reverse_mappings(insights, mappings)
                     st.markdown(decoded_insights)
+                    
+                    # Complete the progress bar
+                    progress_bar.progress(100)
     except ValueError as e:
         st.error(f"Please provide Beam with more data so he can give you your insights.")
 
