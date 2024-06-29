@@ -65,7 +65,7 @@ def reverse_mappings(text, mappings):
                 text = text.replace(code, original)
     return text
 
-# Function to get insights from OpenAI
+# Function to get insights from OpenAI with exponential backoff
 def get_insights_from_openai(data_str, model, insight_type, scenario=None, retries=5):
     prompt = f"Here is the dataset:\n{data_str}\nPlease provide the insights from this data in concise bullet points. Focus on actionable insights and exclude any basic descriptive analytics or trivial observations. Please don't include anything tied to descriptive analytics."
 
@@ -292,29 +292,53 @@ if section == "AI Insights":
             st.write("Mapped and Categorized Data")
             st.dataframe(combined_df)
 
-            # Get insights from OpenAI
-            insight_type = st.selectbox("Select the type of insights you need", ["General Insights", "Trend Analysis", "Key Drivers of Revenue Growth", "What-If Scenario Analysis"])
-            if insight_type == "What-If Scenario Analysis":
-                scenario = {
-                    "factor": st.selectbox("Select the factor to change", df.columns),
-                    "change": st.number_input("Percentage change in the factor", min_value=-100, max_value=100, value=10)
-                }
-            else:
-                scenario = None
+            available_insights = ["General Insights"]
 
-            if st.button("Get Insights"):
-                combined_df_str = combined_df.to_csv(index=False)
-                with st.spinner('Generating insights, please wait...'):
-                    insights = get_insights_from_openai(combined_df_str, "gpt-4", insight_type, scenario)
-                    st.subheader("AI-Generated Insights")
-                    st.markdown(insights)
+            trend_columns = {'Date', 'Month Number', 'Month Name', 'Year'}
+            if any(col in df.columns for col in trend_columns):
+                available_insights.append("Trend Analysis")
 
+            key_drivers_columns = {'Gross Sales', 'Sales', 'Date', 'Profit'}
+            if any(col in df.columns for col in key_drivers_columns):
+                available_insights.append("Key Drivers of Revenue Growth")
+
+            exclude_factors = {'Month Number', 'Month Name', 'Year'}
+            numeric_factors = [col for col in categorized_df.columns if set(categorized_df[col].unique()).issubset({'Below Avg', 'Avg', 'Above Avg'}) and col not in exclude_factors]
+
+            if numeric_factors:
+                available_insights.append("What-If Scenario Analysis")
+
+            selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
+
+            scenario = None
+            if selected_insight == "What-If Scenario Analysis":
+                factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
+                change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
+                scenario = {"factor": factor, "change": change}
+
+            if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
+                if st.button("Perform Analysis", key="perform_analysis"):
+                    progress_bar = st.progress(0)
+                    with st.spinner('Generating insights, please wait...'):
+                        combined_df_str = combined_df.to_csv(index=False)
+                        for i in range(0, 50, 5):
+                            time.sleep(0.5)
+                            progress_bar.progress(i)
+                        insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
+                        for i in range(50, 100, 5):
+                            time.sleep(0.5)
+                            progress_bar.progress(i)
+                        if selected_insight != "What-If Scenario Analysis":
+                            st.markdown("**Conclusions and Recommendations**")
+                        decoded_insights = reverse_mappings(insights, mappings)
+                        st.markdown(decoded_insights)
+                        progress_bar.progress(100)
         except ValueError as e:
             st.error(f"Please provide Beam with more data so he can give you your insights.")
     else:
         st.write("Please upload a file to proceed.")
 
-# AI Visualizations Section
+# Visualize Data Section
 elif section == "AI Visualizations":
     st.title("Visualize Your Data with AI")
     st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
