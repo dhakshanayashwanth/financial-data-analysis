@@ -136,7 +136,14 @@ mappings = load_mappings()
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
-section = st.sidebar.radio("Go to", ["AI Insights", "AI Visualizations", "ChatGPT", "Intro to ChatGPT", "AI in Finance"])
+section = st.sidebar.radio("Go to", [
+    "AI Insights", 
+    "AI Visualizations", 
+    "ChatGPT", 
+    "Intro to ChatGPT", 
+    "AI in Finance",
+    "Interactive AI Tutorials"
+])
 
 # AI Insights Section
 if section == "AI Insights":
@@ -497,3 +504,50 @@ elif section == "AI in Finance":
         st.warning("The latest AI in Finance links have not been fetched yet. Please run the fetch_latest_links.py script.")
     except json.JSONDecodeError:
         st.warning("There was an error reading the latest AI in Finance links. Please check the JSON file.")
+
+# Interactive AI Tutorials Section
+elif section == "Interactive AI Tutorials":
+    st.title("Interactive AI Tutorials")
+
+    st.markdown("""
+    ## Interactive AI Tutorials in Finance
+
+    1. **Coursera - AI in Finance**
+       - [AI For Everyone](https://www.coursera.org/learn/ai-for-everyone)
+       - [AI for Finance by NYU](https://www.coursera.org/learn/ai-for-finance)
+
+    2. **Udacity - AI in Trading**
+       - [AI for Trading](https://www.udacity.com/course/ai-for-trading--nd880)
+
+    3. **edX - AI for Financial Services**
+       - [AI in Finance](https://www.edx.org/course/artificial-intelligence-in-finance)
+
+    4. **DataCamp - Machine Learning for Finance in Python**
+       - [Machine Learning for Finance in Python](https://www.datacamp.com/courses/machine-learning-for-finance-in-python)
+
+    5. **Kaggle - Financial Data Analysis and Machine Learning**
+       - [Financial Data Analysis](https://www.kaggle.com/learn/financial-data-analysis)
+
+    ## Additional Interactive Tutorials
+
+    1. **Google's Machine Learning Crash Course**
+       - [Machine Learning Crash Course](https://developers.google.com/machine-learning/crash-course)
+
+    2. **Kaggle Learn**
+       - [Kaggle Learn](https://www.kaggle.com/learn)
+
+    3. **Fast.ai**
+       - [Fast.ai Courses](https://course.fast.ai/)
+
+    4. **Codecademy's Data Science and Machine Learning Courses**
+       - [Codecademy AI Courses](https://www.codecademy.com/catalog/subject/data-science)
+
+    5. **Coursera**
+       - [Coursera AI Courses](https://www.coursera.org/browse/data-science/machine-learning)
+
+    6. **Microsoft Learn AI**
+       - [Microsoft Learn AI](https://docs.microsoft.com/en-us/learn/paths/build-ai-solutions-with-azure/)
+
+    7. **DataCamp**
+       - [DataCamp AI Courses](https://www.datacamp.com/)
+    """)
