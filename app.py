@@ -110,7 +110,7 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
                 ]
             )
             return response['choices'][0]['message']['content']
-        except RateLimitError as e:
+        except openai.error.RateLimitError as e:
             attempt += 1
             wait_time = 2 ** attempt  # Exponential backoff
             st.warning(f"Rate limit reached for {model}. Retrying in {wait_time} seconds...")
@@ -129,14 +129,14 @@ def get_visualization_recommendations(data_str):
         ],
         max_tokens=150
     )
-    return response.choices[0].message.content.strip()
+    return response['choices'][0]['message']['content'].strip()
 
 # Load existing mappings
 mappings = load_mappings()
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
-section = st.sidebar.radio("Go to", ["AI Insights", "AI Visualizations", "ChatGPT", "Intro to ChatGPT"])
+section = st.sidebar.radio("Go to", ["AI Insights", "AI Visualizations", "ChatGPT", "Intro to ChatGPT", "AI in Finance"])
 
 # AI Insights Section
 if section == "AI Insights":
@@ -285,57 +285,33 @@ if section == "AI Insights":
             st.write("Mapped and Categorized Data")
             st.dataframe(combined_df)
 
-            available_insights = ["General Insights"]
+            # Get insights from OpenAI
+            insight_type = st.selectbox("Select the type of insights you need", ["General Insights", "Trend Analysis", "Key Drivers of Revenue Growth", "What-If Scenario Analysis"])
+            if insight_type == "What-If Scenario Analysis":
+                scenario = {
+                    "factor": st.selectbox("Select the factor to change", df.columns),
+                    "change": st.number_input("Percentage change in the factor", min_value=-100, max_value=100, value=10)
+                }
+            else:
+                scenario = None
 
-            trend_columns = {'Date', 'Month Number', 'Month Name', 'Year'}
-            if any(col in df.columns for col in trend_columns):
-                available_insights.append("Trend Analysis")
+            if st.button("Get Insights"):
+                combined_df_str = combined_df.to_csv(index=False)
+                with st.spinner('Generating insights, please wait...'):
+                    insights = get_insights_from_openai(combined_df_str, "gpt-4", insight_type, scenario)
+                    st.subheader("AI-Generated Insights")
+                    st.markdown(insights)
 
-            key_drivers_columns = {'Gross Sales', 'Sales', 'Date', 'Profit'}
-            if any(col in df.columns for col in key_drivers_columns):
-                available_insights.append("Key Drivers of Revenue Growth")
-
-            exclude_factors = {'Month Number', 'Month Name', 'Year'}
-            numeric_factors = [col for col in categorized_df.columns if set(categorized_df[col].unique()).issubset({'Below Avg', 'Avg', 'Above Avg'}) and col not in exclude_factors]
-
-            if numeric_factors:
-                available_insights.append("What-If Scenario Analysis")
-
-            selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
-
-            scenario = None
-            if selected_insight == "What-If Scenario Analysis":
-                factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
-                change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
-                scenario = {"factor": factor, "change": change}
-
-            if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
-                if st.button("Perform Analysis", key="perform_analysis"):
-                    progress_bar = st.progress(0)
-                    with st.spinner('Generating insights, please wait...'):
-                        combined_df_str = combined_df.to_csv(index=False)
-                        for i in range(0, 50, 5):
-                            time.sleep(0.5)
-                            progress_bar.progress(i)
-                        insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
-                        for i in range(50, 100, 5):
-                            time.sleep(0.5)
-                            progress_bar.progress(i)
-                        if selected_insight != "What-If Scenario Analysis":
-                            st.markdown("**Conclusions and Recommendations**")
-                        decoded_insights = reverse_mappings(insights, mappings)
-                        st.markdown(decoded_insights)
-                        progress_bar.progress(100)
         except ValueError as e:
             st.error(f"Please provide Beam with more data so he can give you your insights.")
     else:
         st.write("Please upload a file to proceed.")
 
-# Visualize Data Section
+# AI Visualizations Section
 elif section == "AI Visualizations":
     st.title("Visualize Your Data with AI")
     st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
-    st.markdown("**Note:** Ensure your dataset is properly prepared.")
+    st.markdown("**Note:** Ensure your dataset is properly prepared. ChatGPT can not create visualizations for you but it can offer recommendations on which charts can be created with your data. This can assist with exploratory analysis, gathering insights and creating ppts.")
 
     uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="visualize_data_upload")
 
@@ -497,10 +473,27 @@ elif section == "ChatGPT":
 # Intro to ChatGPT Section
 elif section == "Intro to ChatGPT":
     st.title("Intro to ChatGPT")
-    st.markdown("Here are some recommended courses to get started with ChatGPT:")
+    st.markdown("Here are some recommended free courses to get started with ChatGPT:")
     st.markdown("""
-    - [Codecademy's Intro to ChatGPT](https://www.codecademy.com)
-    - [Coursera's Generative AI with Large Language Models](https://www.coursera.org/learn/generative-ai-with-llms)
-    - [Udacity's AI Programming with Python](https://www.udacity.com/course/ai-programming-python--nd089)
-    - [LinkedIn Learning's Getting Started with OpenAI GPT-3](https://www.linkedin.com/learning/getting-started-with-openai-gpt-3)
+    - [Introduction to ChatGPT by Codecademy](https://www.codecademy.com/learn/introduction-to-chatgpt)
+    - [ChatGPT Basics by Coursera](https://www.coursera.org/learn/chatgpt-basics)
+    - [Getting Started with ChatGPT by edX](https://www.edx.org/course/getting-started-with-chatgpt)
     """)
+
+# AI in Finance Section
+elif section == "AI in Finance":
+    st.title("AI in Finance")
+    st.markdown("Learn about the latest uses of AI in finance. Here are some recent articles:")
+    
+    try:
+        with open('latest_ai_in_finance_links.json', 'r') as file:
+            data = json.load(file)
+            last_updated = data["last_updated"]
+            links = data["links"]
+            st.markdown(f"**Last Updated:** {last_updated}")
+            for link in links:
+                st.markdown(f"- [{link['title']}]({link['url']})")
+    except FileNotFoundError:
+        st.warning("The latest AI in Finance links have not been fetched yet. Please run the fetch_latest_links.py script.")
+    except json.JSONDecodeError:
+        st.warning("There was an error reading the latest AI in Finance links. Please check the JSON file.")
