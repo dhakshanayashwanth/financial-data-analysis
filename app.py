@@ -514,19 +514,12 @@ elif section == "Interactive AI Tutorials":
 
     1. **Coursera - AI in Finance**
        - [AI For Everyone](https://www.coursera.org/learn/ai-for-everyone)
-       - [AI for Finance by NYU](https://www.coursera.org/learn/ai-for-finance)
 
     2. **Udacity - AI in Trading**
        - [AI for Trading](https://www.udacity.com/course/ai-for-trading--nd880)
 
-    3. **edX - AI for Financial Services**
-       - [AI in Finance](https://www.edx.org/course/artificial-intelligence-in-finance)
-
-    4. **DataCamp - Machine Learning for Finance in Python**
+    3. **DataCamp - Machine Learning for Finance in Python**
        - [Machine Learning for Finance in Python](https://www.datacamp.com/courses/machine-learning-for-finance-in-python)
-
-    5. **Kaggle - Financial Data Analysis and Machine Learning**
-       - [Financial Data Analysis](https://www.kaggle.com/learn/financial-data-analysis)
 
     ## Additional Interactive Tutorials
 
@@ -545,9 +538,6 @@ elif section == "Interactive AI Tutorials":
     5. **Coursera**
        - [Coursera AI Courses](https://www.coursera.org/browse/data-science/machine-learning)
 
-    6. **Microsoft Learn AI**
-       - [Microsoft Learn AI](https://docs.microsoft.com/en-us/learn/paths/build-ai-solutions-with-azure/)
-
-    7. **DataCamp**
+    6. **DataCamp**
        - [DataCamp AI Courses](https://www.datacamp.com/)
     """)
