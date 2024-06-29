@@ -513,13 +513,16 @@ elif section == "Interactive AI Tutorials":
     st.markdown("""
     ## Interactive AI Tutorials in Finance
 
-    1. **Coursera - AI in Finance**
+    1. **ChatGPT/AI for Finance Professionals: Investing & Analysis**
+        - [AI For Everyone](https://www.udemy.com/course/chatgpt-for-finance-professionals-investing-analysis/?couponCode=LETSLEARNNOWPP)
+                
+    2. **Coursera - AI in Finance**
        - [AI For Everyone](https://www.coursera.org/learn/ai-for-everyone)
 
-    2. **Udacity - AI in Trading**
+    3. **Udacity - AI in Trading**
        - [AI for Trading](https://www.udacity.com/course/ai-for-trading--nd880)
 
-    3. **DataCamp - Machine Learning for Finance in Python**
+    4. **DataCamp - Machine Learning for Finance in Python**
        - [Machine Learning for Finance in Python](https://www.datacamp.com/courses/machine-learning-for-finance-in-python)
 
     ## Additional Interactive Tutorials
