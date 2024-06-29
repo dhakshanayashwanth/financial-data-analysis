@@ -154,7 +154,7 @@ if section == "AI Insights":
     st.title("Hi, I'm Beam 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
     st.markdown('<p style="font-size:14px; margin-top: 20px;">Beam is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
     st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
-    st.markdown("**Note:** The most data ChatGPT can analyze is 500 rows or around 103KB.")
+    st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
 
     uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="ai_insights_upload")
 
@@ -199,17 +199,17 @@ if section == "AI Insights":
         df = dataframes[0] if dataframes else None
 
     if df is not None:
-        if len(df) > 500:
-            st.warning(f"Dataset contains {len(df)} rows. ChatGPT can only analyze up to 500 rows.")
+        if len(df) > 700:
+            st.warning(f"Dataset contains {len(df)} rows. ChatGPT can only analyze up to 700 rows.")
             
-            auto_filter = st.radio("Do you want us to automatically filter the most recent 500 rows?", ("Yes", "No"), key="auto_filter")
+            auto_filter = st.radio("Do you want us to automatically filter the most recent 700 rows?", ("Yes", "No"), key="auto_filter")
             
             if auto_filter == "Yes":
-                df = df.iloc[::-1].head(500).reset_index(drop=True)
+                df = df.iloc[::-1].head(700).reset_index(drop=True)
                 st.session_state['df'] = df
-                st.success("Automatically filtered to the most recent 500 rows.")
+                st.success("Automatically filtered to the most recent 700 rows.")
             else:
-                st.write("Please filter the data to 500 rows or less and re-upload the file.")
+                st.write("Please filter the data to 700 rows or less and re-upload the file.")
                 
                 st.subheader("Filter Data")
                 filter_columns = st.multiselect("Select columns to filter by", df.columns.tolist(), key="filter_columns")
@@ -220,12 +220,12 @@ if section == "AI Insights":
                     selected_values = st.multiselect(f"Select values for {col}", unique_values, default=unique_values, key=f"filter_{col}")
                     filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
 
-                if len(filtered_df) <= 500:
+                if len(filtered_df) <= 700:
                     st.session_state['df'] = filtered_df
                     st.write("Filtered Data")
                     st.dataframe(filtered_df)
                 else:
-                    st.warning("Filtered data still exceeds 500 rows. Please adjust your filters or manually reduce the dataset size.")
+                    st.warning("Filtered data still exceeds 700 rows. Please adjust your filters or manually reduce the dataset size.")
         else:
             st.session_state['df'] = df
 
