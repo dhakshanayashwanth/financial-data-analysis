@@ -482,9 +482,10 @@ elif section == "Intro to ChatGPT":
     st.title("Intro to ChatGPT")
     st.markdown("Here are some recommended free courses to get started with ChatGPT:")
     st.markdown("""
-    - [Introduction to ChatGPT by Codecademy](https://www.codecademy.com/learn/introduction-to-chatgpt)
-    - [ChatGPT Basics by Coursera](https://www.coursera.org/learn/chatgpt-basics)
-    - [Getting Started with ChatGPT by edX](https://www.edx.org/course/getting-started-with-chatgpt)
+    - [Introduction to ChatGPT by Codecademy](https://www.codecademy.com/learn/intro-to-chatgpt)
+    - [edX: Introduction to ChatGPT](https://www.edx.org/learn/chatgpt/edx-introduction-to-chatgpt)
+    - [datacamp: Introduction to ChatGPT](https://www.datacamp.com/courses/introduction-to-chatgpt)
+    - [The Neuron: Intro to ChatGPT](https://www.theneuron.ai/courses/intro-to-chatgpt-training-course)
     """)
 
 # AI in Finance Section
