@@ -36,13 +36,17 @@ def save_mappings(mappings):
 def categorize_values(series):
     mean = series.mean()
     std = series.std()
-    bins = [-np.inf, mean - std, mean + std, np.inf]
+    bins = [-np.inf, mean - 2*std, mean - std, mean + std, mean + 2*std, np.inf]
+    labels = ['Much Below Avg', 'Below Avg', 'Avg', 'Above Avg', 'Much Above Avg']
+    
     if len(np.unique(bins)) != len(bins):
         bins = np.unique(bins)
+        labels = labels[:len(bins)-1]
+
     categories = pd.cut(
         series,
         bins=bins,
-        labels=['Below Avg', 'Avg', 'Above Avg'],
+        labels=labels,
         duplicates='drop'
     )
     return categories
