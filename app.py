@@ -8,7 +8,6 @@ import uuid
 import time
 import os
 from dotenv import load_dotenv
-from openai.error import RateLimitError
 import plotly.express as px
 
 # Load environment variables from .env file (only for local development)
@@ -119,12 +118,25 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
     st.error("Failed to get insights after multiple attempts. Please try again later.")
     return None
 
+# Function to get visualization recommendations from OpenAI
+def get_visualization_recommendations(data_str):
+    prompt = f"Here is the dataset:\n{data_str}\nPlease suggest some potential visualizations from this data. Provide recommendations with brief descriptions of the visuals."
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are an AI data analyst."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=150
+    )
+    return response.choices[0].message.content.strip()
+
 # Load existing mappings
 mappings = load_mappings()
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
-section = st.sidebar.radio("Go to", ["AI Insights", "Visualize Data", "ChatGPT and AI Training"])
+section = st.sidebar.radio("Go to", ["AI Insights", "AI Visualizations", "ChatGPT", "Intro to ChatGPT"])
 
 # AI Insights Section
 if section == "AI Insights":
@@ -320,8 +332,8 @@ if section == "AI Insights":
         st.write("Please upload a file to proceed.")
 
 # Visualize Data Section
-elif section == "Visualize Data":
-    st.title("Visualize Your Data")
+elif section == "AI Visualizations":
+    st.title("Visualize Your Data with AI")
     st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
     st.markdown("**Note:** Ensure your dataset is properly prepared.")
 
@@ -372,6 +384,47 @@ elif section == "Visualize Data":
         df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
         df.columns = df.columns.str.strip()
 
+        st.subheader("Preview Data")
+        st.write("Here's a preview of your data:")
+        st.dataframe(df)
+
+        # Encode and categorize data
+        categorized_df = df.copy()
+        numeric_columns = []
+        for col in df.columns:
+            if df[col].dtype in [np.int64, np.float64]:
+                categorized_df[col] = categorize_values(df[col])
+                numeric_columns.append(col)
+
+        encoded_df = df.copy()
+        for col in df.columns:
+            if df[col].dtype == object:
+                if col not in mappings:
+                    mappings[col] = {}
+                encoded_df[col] = df[col].apply(lambda x: generate_code(x, mappings[col]))
+
+        save_mappings(mappings)
+
+        combined_df = encoded_df.copy()
+        for col in numeric_columns:
+            combined_df[col] = categorized_df[col]
+
+        st.subheader("Mapped and Categorized Data")
+        st.dataframe(combined_df)
+
+        # Get visualization recommendations once and store them
+        if 'visualization_recommendations' not in st.session_state:
+            progress_bar = st.progress(0)
+            combined_df_str = combined_df.to_csv(index=False)
+            with st.spinner('Generating visualization recommendations, please wait...'):
+                recommendations = get_visualization_recommendations(combined_df_str)
+                st.session_state['visualization_recommendations'] = recommendations
+                progress_bar.progress(100)
+
+        st.subheader("Visualization Recommendations")
+        st.markdown(st.session_state['visualization_recommendations'])
+
+        # Create Visuals
         st.subheader("Create Visuals")
         st.write("Choose a type of chart and columns to visualize your data.")
 
@@ -434,12 +487,20 @@ elif section == "Visualize Data":
     else:
         st.warning("No data available. Please upload data to create visuals.")
 
-# ChatGPT and AI Training Section
-elif section == "ChatGPT and AI Training":
-    st.title("ChatGPT and AI Training")
-    st.markdown("Learn more about ChatGPT and AI Training options:")
+# ChatGPT Section
+elif section == "ChatGPT":
+    st.title("ChatGPT")
     st.markdown("""
     - [ChatGPT](https://www.openai.com/chatgpt)
-    - [AI Training](https://www.openai.com/ai-training)
     """)
 
+# Intro to ChatGPT Section
+elif section == "Intro to ChatGPT":
+    st.title("Intro to ChatGPT")
+    st.markdown("Here are some recommended courses to get started with ChatGPT:")
+    st.markdown("""
+    - [Codecademy's Intro to ChatGPT](https://www.codecademy.com)
+    - [Coursera's Generative AI with Large Language Models](https://www.coursera.org/learn/generative-ai-with-llms)
+    - [Udacity's AI Programming with Python](https://www.udacity.com/course/ai-programming-python--nd089)
+    - [LinkedIn Learning's Getting Started with OpenAI GPT-3](https://www.linkedin.com/learning/getting-started-with-openai-gpt-3)
+    """)
