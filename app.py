@@ -141,16 +141,34 @@ mappings = load_mappings()
 # Sidebar for navigation
 st.sidebar.title("Navigation")
 section = st.sidebar.radio("Go to", [
-    "AI Insights", 
+    "Get Started",
+    "AI Data Analysis with Beam", 
     "AI Visualizations", 
+    "RevXpert",
     "ChatGPT", 
     "Intro to ChatGPT", 
     "AI in Finance",
-    "Interactive AI Tutorials"
+    "Interactive AI Tutorials",
+    "Degreed for AI and Other Tech Skills"
 ])
 
-# AI Insights Section
-if section == "AI Insights":
+if section == "Get Started":
+    st.title("Welcome to the Finance AI Hub!")
+    st.markdown("""
+    The Finance AI Hub is your one-stop shop for AI data insights, data querying, and upskilling in AI. Get started by navigating through the different sections available:
+    
+    - **AI Data Analysis with Beam:** Upload your data and let Beam provide insights and recommendations.
+    - **AI Visualizations:** Visualize your data with recommendations from Beam.
+    - **RevXpert:** Your one-stop solution for revenue optimization and analysis.
+    - **ChatGPT:** Learn more about ChatGPT.
+    - **Intro to ChatGPT:** Recommended free courses to get started with ChatGPT.
+    - **AI in Finance:** Discover the latest uses of AI in finance.
+    - **Interactive AI Tutorials:** Explore various interactive AI tutorials.
+    - **Degreed for AI and Other Tech Skills:** Access a variety of AI and other tech skill courses offered by Degreed.
+    """)
+
+# AI Data Analysis with Beam Section
+elif section == "AI Data Analysis with Beam":
     st.title("Hi, I'm Beam 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
     st.markdown('<p style="font-size:14px; margin-top: 20px;">Beam is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
     st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
@@ -199,33 +217,20 @@ if section == "AI Insights":
         df = dataframes[0] if dataframes else None
 
     if df is not None:
+        # Convert date fields to datetime and sort
+        date_column = None
+        if 'Year' in df.columns:
+            df['Year'] = pd.to_numeric(df['Year'], errors='coerce')
+            df = df.sort_values(by='Year')
+            date_column = 'Year'
+        elif 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df = df.sort_values(by='Date')
+            date_column = 'Date'
+        
         if len(df) > 700:
-            st.warning(f"Dataset contains {len(df)} rows. ChatGPT can only analyze up to 700 rows.")
-            
-            auto_filter = st.radio("Do you want us to automatically filter the most recent 700 rows?", ("Yes", "No"), key="auto_filter")
-            
-            if auto_filter == "Yes":
-                df = df.iloc[::-1].head(700).reset_index(drop=True)
-                st.session_state['df'] = df
-                st.success("Automatically filtered to the most recent 700 rows.")
-            else:
-                st.write("Please filter the data to 700 rows or less and re-upload the file.")
-                
-                st.subheader("Filter Data")
-                filter_columns = st.multiselect("Select columns to filter by", df.columns.tolist(), key="filter_columns")
-                filtered_df = df.copy()
-
-                for col in filter_columns:
-                    unique_values = df[col].unique().tolist()
-                    selected_values = st.multiselect(f"Select values for {col}", unique_values, default=unique_values, key=f"filter_{col}")
-                    filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
-
-                if len(filtered_df) <= 700:
-                    st.session_state['df'] = filtered_df
-                    st.write("Filtered Data")
-                    st.dataframe(filtered_df)
-                else:
-                    st.warning("Filtered data still exceeds 700 rows. Please adjust your filters or manually reduce the dataset size.")
+            df = df.head(700)
+            st.session_state['df'] = df
         else:
             st.session_state['df'] = df
 
@@ -235,20 +240,7 @@ if section == "AI Insights":
         df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
         df.columns = df.columns.str.strip()
 
-        date_column = None
-        for col in df.columns:
-            if re.search(r'date|month|year', col, re.IGNORECASE):
-                try:
-                    pd.to_datetime(df[col], errors='raise')
-                    date_column = col
-                    break
-                except (ValueError, TypeError):
-                    continue
-
-        if date_column:
-            df[date_column] = pd.to_datetime(df[date_column]).dt.strftime('%m/%d/%Y')
-
-        exclude_columns = [date_column] if date_column else []
+        exclude_columns = ['Year', 'Date', 'Month Number', 'Month Name']
 
         numeric_columns = []
         for col in df.columns:
@@ -498,6 +490,12 @@ elif section == "AI Visualizations":
     else:
         st.warning("No data available. Please upload data to create visuals.")
 
+# RevXpert Section
+elif section == "RevXpert":
+    st.title("RevXpert")
+    st.markdown("Welcome to RevXpert! Your one-stop solution for revenue optimization and analysis.")
+    # Add your content for the RevXpert section here
+
 # ChatGPT Section
 elif section == "ChatGPT":
     st.title("ChatGPT")
@@ -573,3 +571,9 @@ elif section == "Interactive AI Tutorials":
     6. **DataCamp**
        - [DataCamp AI Courses](https://www.datacamp.com/)
     """)
+
+# Degreed for AI and Other Tech Skills Section
+elif section == "Degreed for AI and Other Tech Skills":
+    st.title("Degreed for AI and Other Tech Skills")
+    st.markdown("Explore a variety of AI and other tech skill courses offered by Degreed.")
+    # Add your content for the Degreed for AI and Other Tech Skills section here
