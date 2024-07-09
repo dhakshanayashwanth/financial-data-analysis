@@ -125,8 +125,8 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
 # Load existing mappings
 mappings = load_mappings()
 
-st.title("Hi, I'm Beam 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
-st.markdown('<p style="font-size:14px; margin-top: 20px;">Beam is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
+st.title("Hi, I'm Bheem 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
+st.markdown('<p style="font-size:14px; margin-top: 20px;">Bheem is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
 st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
 st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
 
