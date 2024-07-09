@@ -74,34 +74,62 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
     prompt = f"Here is the dataset:\n{data_str}\nPlease provide the insights from this data in concise bullet points. Focus on actionable insights and exclude any basic descriptive analytics or trivial observations. Please don't include anything tied to descriptive analytics."
 
     if insight_type == "General Insights":
-        prompt += (" Provide general insights from the dataset."
-                   " Focus on actionable insights and exclude any basic descriptive analytics or trivial observations."
-                   " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact.")
+        prompt += (
+            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " Provide general insights from the dataset."
+            " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
+            " If necessary, aggregate or group the data by relevant variables for analysis."
+            " Create additional features from the dataset if you feel they can help with the analysis."
+            " Focus on actionable insights and exclude any basic descriptive analytics or trivial observations."
+            " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
+            " Do not provide the Data Quality Observations section or any descriptive analytics."
+        )
 
     elif insight_type == "Trend Analysis":
-        prompt += (" Perform a detailed trend analysis focusing on identifying and analyzing trends over time."
-                   " Include details such as monthly or quarterly trends, seasonal patterns, and year-over-year comparisons."
-                   " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics,"
-                   " and provide insights on sales performance by segment and product."
-                   " Provide specific insights based on the identified trends."
-                   " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
-                   " Please avoid any basic descriptive analytics.")
+        prompt += (
+            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " Perform a detailed trend analysis focusing on identifying and analyzing trends over time."
+            " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
+            " If necessary, aggregate or group the data by relevant variables for analysis."
+            " Create additional features from the dataset if you feel they can help with the analysis."
+            " Include details such as monthly or quarterly trends, seasonal patterns, and year-over-year comparisons."
+            " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics,"
+            " and provide insights on sales performance by segment and product."
+            " Provide specific insights based on the identified trends."
+            " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
+            " Please avoid any basic descriptive analytics."
+            " Do not provide the Data Quality Observations section or any descriptive analytics."
+        )
 
     elif insight_type == "Key Drivers of Revenue Growth":
-        prompt += (" Analyze the dataset to identify the key drivers of revenue growth last month."
-                   " Provide detailed insights on which factors contributed most significantly to the increase or decrease in revenue."
-                   " Include specific segments, products, or discounts that had the largest impact.")
-        
+        prompt += (
+            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
+            " If necessary, aggregate or group the data by relevant variables for analysis."
+            " Create additional features from the dataset if you feel they can help with the analysis."
+            " Analyze the dataset to identify the key drivers of revenue growth."
+            " Provide detailed insights on which factors contributed most significantly to the increase or decrease in revenue."
+            " Include specific segments, products, or discounts that had the largest impact."
+            " Do not provide the Data Quality Observations section or any descriptive analytics."
+        )
+
     elif insight_type == "What-If Scenario Analysis":
         change = scenario['change']
         factor = scenario['factor']
-        prompt += (f" Perform a what-if scenario analysis to evaluate the impact of decreasing the {factor} by {change}%."
-                       " Provide specific and tangible insights on how this decrease would affect the {factor} or any of the other fields in the dataset."
-                       " Avoid generic statements and focus on concrete data-driven insights."
-                       " Ensure the analysis is relevant to a CFO, VP of Finance or Director of Finance, focusing on strategic decisions and business impact."
-                       " Please avoid any basic descriptive analytics."
-                       " Focus only on the impacts without providing any conclusions, recommendations, or key metrics."
-                       " Do not include conclusions, recommendations, or key metrics.")
+        prompt += (
+            f" Perform a what-if scenario analysis to evaluate the impact of decreasing the {factor} by {change}%."
+            " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
+            " If necessary, aggregate or group the data by relevant variables for analysis."
+            " Create additional features from the dataset if you feel they can help with the analysis."
+            f" Provide specific and tangible insights on how this decrease would affect the {factor} or any of the other fields in the dataset."
+            " Avoid generic statements and focus on concrete data-driven insights."
+            " Ensure the analysis is relevant to a CFO, VP of Finance, or Director of Finance, focusing on strategic decisions and business impact."
+            " Please avoid any basic descriptive analytics."
+            " Focus only on the impacts without providing any conclusions, recommendations, or key metrics."
+            " Do not include conclusions, recommendations, or key metrics."
+            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " Do not provide the Data Quality Observations section or any descriptive analytics."
+        )
 
     attempt = 0
     while attempt < retries:
