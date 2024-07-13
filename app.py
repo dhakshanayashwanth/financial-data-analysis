@@ -65,12 +65,10 @@ def generate_code(value, mapping_dict):
 
 # Function to reverse the mapping
 def reverse_mappings(df, mappings):
-    reversed_df = df.copy()
     for col, mapping_dict in mappings.items():
-        if col in reversed_df.columns:
-            reverse_dict = {v: k for k, v in mapping_dict.items() if '|' not in k}
-            reversed_df[col] = reversed_df[col].map(reverse_dict).fillna(reversed_df[col])
-    return reversed_df
+        reverse_dict = {v: k for k, v in mapping_dict.items() if '|' not in str(k)}
+        df[col] = df[col].map(reverse_dict).fillna(df[col])
+    return df
 
 # Function to get insights from OpenAI with exponential backoff
 def get_insights_from_openai(data_str, model, insight_type, scenario=None, retries=5):
@@ -174,9 +172,6 @@ mappings = load_mappings()
 
 st.title("Hi, I'm Bheem 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
 st.markdown('<p style="font-size:14px; margin-top: 20px;">Bheem is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
-st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
-st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
-st.markdown("**Note:** **PLEASE** clean and format your data as much as possible before loading it to Bheem. This will make the analysis easier and faster to complete.")
 
 uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="ai_insights_upload")
 
@@ -339,55 +334,59 @@ if 'df' in st.session_state:
         if numeric_factors:
             available_insights.append("What-If Scenario Analysis")
 
-        st.subheader("Insights and Q&A Section")
+        scenario = None
+
+        # Add a section for asking specific questions about the data
+        st.markdown("## Insights and Q&A Section")
+
+        # Define two columns for the layout
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
-
-            scenario = None
-            if selected_insight == "What-If Scenario Analysis":
-                factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
-                change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
-                scenario = {"factor": factor, "change": change}
-
-            if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
-                if st.button("Perform Analysis", key="perform_analysis"):
-                    progress_bar = st.progress(0)
-                    with st.spinner('Generating insights, please wait...'):
-                        combined_df_str = combined_df.to_csv(index=False)
-                        for i in range(0, 50, 5):
-                            time.sleep(0.5)
-                            progress_bar.progress(i)
-                        insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
-                        for i in range(50, 100, 5):
-                            time.sleep(0.5)
-                            progress_bar.progress(i)
-                        if selected_insight != "What-If Scenario Analysis":
-                            st.markdown("**Conclusions and Recommendations**")
-                        decoded_insights = reverse_mappings(combined_df, mappings)
-                        st.markdown(insights)
-                        progress_bar.progress(100)
+            st.markdown("**Please select the type of insights you would like to see and wait 30-60 seconds for the insights to generate:**")
+            selected_insight = st.selectbox("", available_insights)
+            if st.button("Perform Analysis"):
+                progress_bar = st.progress(0)
+                with st.spinner('Generating insights, please wait...'):
+                    combined_df_str = combined_df.to_csv(index=False)
+                    for i in range(0, 50, 5):
+                        time.sleep(0.5)
+                        progress_bar.progress(i)
+                    insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
+                    for i in range(50, 100, 5):
+                        time.sleep(0.5)
+                        progress_bar.progress(i)
+                    if selected_insight != "What-If Scenario Analysis":
+                        st.markdown("**Conclusions and Recommendations**")
+                    decoded_insights = reverse_mappings(insights, mappings)
+                    st.markdown(decoded_insights)
+                    progress_bar.progress(100)
 
         with col2:
-            st.subheader("Ask a Question About Your Data")
-            user_query = st.text_input("Enter your question for ChatGPT about your data:")
-            
+            st.markdown("**Ask a Question About Your Data**")
+            question = st.text_input("Enter your question for ChatGPT about your data:")
             if st.button("Ask ChatGPT"):
-                with st.spinner('ChatGPT is processing your question...'):
-                    data_str = combined_df.to_csv(index=False)
-                    prompt = f"Here is the dataset:\n{data_str}\n\nQuestion: {user_query}\n\nPlease provide a detailed answer based on the dataset."
-                    
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4o",
-                        messages=[
-                            {"role": "system", "content": "You are an AI data analyst."},
-                            {"role": "user", "content": prompt}
-                        ]
-                    )
-                    answer = response['choices'][0]['message']['content']
-                    st.markdown(answer)
-                
+                combined_df_str = combined_df.to_csv(index=False)
+                prompt = f"Here is the dataset:\n{combined_df_str}\nQuestion: {question}\nPlease provide a detailed and insightful response based on the dataset provided."
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are an AI data analyst."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                st.markdown(response['choices'][0]['message']['content'])
+
+        # Adjust column layout to ensure proper alignment
+        st.markdown(
+            """
+            <style>
+            .css-1lcbmhc { margin-bottom: 0.5rem; }
+            .css-12oz5g7 { margin-top: -2rem; }
+            </style>
+            """, 
+            unsafe_allow_html=True
+        )
     except ValueError as e:
         st.error(f"Please provide Beam with more data so he can give you your insights.")
 else:
