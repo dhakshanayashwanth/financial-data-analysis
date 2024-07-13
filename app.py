@@ -64,13 +64,13 @@ def generate_code(value, mapping_dict):
     return mapping_dict[value]
 
 # Function to reverse the mapping
-def reverse_mappings(text, mappings):
+def reverse_mappings(df, mappings):
+    reversed_df = df.copy()
     for col, mapping_dict in mappings.items():
-        reverse_dict = {v: str(k) for k, v in mapping_dict.items() if '|' not in str(k)}
-        for code, original in reverse_dict.items():
-            if isinstance(code, str) and isinstance(original, str):
-                text = text.replace(code, original)
-    return text
+        if col in reversed_df.columns:
+            reverse_dict = {v: k for k, v in mapping_dict.items() if '|' not in k}
+            reversed_df[col] = reversed_df[col].map(reverse_dict).fillna(reversed_df[col])
+    return reversed_df
 
 # Function to get insights from OpenAI with exponential backoff
 def get_insights_from_openai(data_str, model, insight_type, scenario=None, retries=5):
@@ -339,31 +339,55 @@ if 'df' in st.session_state:
         if numeric_factors:
             available_insights.append("What-If Scenario Analysis")
 
-        selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
+        st.subheader("Insights and Q&A Section")
+        col1, col2 = st.columns([1, 1])
 
-        scenario = None
-        if selected_insight == "What-If Scenario Analysis":
-            factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
-            change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
-            scenario = {"factor": factor, "change": change}
+        with col1:
+            selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
 
-        if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
-            if st.button("Perform Analysis", key="perform_analysis"):
-                progress_bar = st.progress(0)
-                with st.spinner('Generating insights, please wait...'):
-                    combined_df_str = combined_df.to_csv(index=False)
-                    for i in range(0, 50, 5):
-                        time.sleep(0.5)
-                        progress_bar.progress(i)
-                    insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
-                    for i in range(50, 100, 5):
-                        time.sleep(0.5)
-                        progress_bar.progress(i)
-                    if selected_insight != "What-If Scenario Analysis":
-                        st.markdown("**Conclusions and Recommendations**")
-                    decoded_insights = reverse_mappings(insights, mappings)
-                    st.markdown(decoded_insights)
-                    progress_bar.progress(100)
+            scenario = None
+            if selected_insight == "What-If Scenario Analysis":
+                factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
+                change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
+                scenario = {"factor": factor, "change": change}
+
+            if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
+                if st.button("Perform Analysis", key="perform_analysis"):
+                    progress_bar = st.progress(0)
+                    with st.spinner('Generating insights, please wait...'):
+                        combined_df_str = combined_df.to_csv(index=False)
+                        for i in range(0, 50, 5):
+                            time.sleep(0.5)
+                            progress_bar.progress(i)
+                        insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
+                        for i in range(50, 100, 5):
+                            time.sleep(0.5)
+                            progress_bar.progress(i)
+                        if selected_insight != "What-If Scenario Analysis":
+                            st.markdown("**Conclusions and Recommendations**")
+                        decoded_insights = reverse_mappings(combined_df, mappings)
+                        st.markdown(insights)
+                        progress_bar.progress(100)
+
+        with col2:
+            st.subheader("Ask a Question About Your Data")
+            user_query = st.text_input("Enter your question for ChatGPT about your data:")
+            
+            if st.button("Ask ChatGPT"):
+                with st.spinner('ChatGPT is processing your question...'):
+                    data_str = combined_df.to_csv(index=False)
+                    prompt = f"Here is the dataset:\n{data_str}\n\nQuestion: {user_query}\n\nPlease provide a detailed answer based on the dataset."
+                    
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": "You are an AI data analyst."},
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+                    answer = response['choices'][0]['message']['content']
+                    st.markdown(answer)
+                
     except ValueError as e:
         st.error(f"Please provide Beam with more data so he can give you your insights.")
 else:
