@@ -33,7 +33,9 @@ def save_mappings(mappings):
         json.dump(mappings, file)
 
 # Function to categorize values based on mean and standard deviation
-def categorize_values(series):
+def categorize_values(series, exclude_columns):
+    if series.name in exclude_columns:
+        return series
     mean = series.mean()
     std = series.std()
     bins = [-np.inf, mean - 2*std, mean - std, mean + std, mean + 2*std, np.inf]
@@ -47,7 +49,8 @@ def categorize_values(series):
         series,
         bins=bins,
         labels=labels,
-        duplicates='drop'
+        duplicates='drop',
+        include_lowest=True
     )
     return categories
 
@@ -81,8 +84,8 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
             " If necessary, aggregate or group the data by relevant variables for analysis."
             " Create additional features from the dataset if you feel they can help with the analysis."
             " Focus on actionable insights and exclude any basic descriptive analytics or trivial observations."
-            " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
-            " Do not provide the Data Quality Observations section or any descriptive analytics."
+            " Ensure the insights are concise and relevant, focusing on strategic decisions and impact."
+            " Do not provide the Data Quality Observations section, Data Consistency, Duplication Check or descriptive analytics."
         )
 
     elif insight_type == "Trend Analysis":
@@ -92,13 +95,14 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
             " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
             " If necessary, aggregate or group the data by relevant variables for analysis."
             " Create additional features from the dataset if you feel they can help with the analysis."
-            " Include details such as monthly or quarterly trends, seasonal patterns, and year-over-year comparisons."
+            " Include details such as monthly or quarterly trends, yearly, seasonal patterns, and year-over-year comparisons."
             " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics,"
             " and provide insights on sales performance by segment and product."
             " Provide specific insights based on the identified trends."
-            " Ensure the insights are concise and relevant to a senior finance audience, focusing on strategic decisions and business impact."
+            " Ensure the insights are concise and relevant, focusing on strategic decisions and impact."
             " Please avoid any basic descriptive analytics."
-            " Do not provide the Data Quality Observations section or any descriptive analytics."
+            " Avoid redundancy in insights and ensure all words are spelled correctly."
+            " Do not provide the Data Quality Observations section, Data Consistency, Duplication Check or descriptive analytics."
         )
 
     elif insight_type == "Key Drivers of Revenue Growth":
@@ -110,7 +114,7 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
             " Analyze the dataset to identify the key drivers of revenue growth."
             " Provide detailed insights on which factors contributed most significantly to the increase or decrease in revenue."
             " Include specific segments, products, or discounts that had the largest impact."
-            " Do not provide the Data Quality Observations section or any descriptive analytics."
+            " Do not provide the Data Quality Observations section, Data Consistency, Duplication Check or descriptive analytics."
         )
 
     elif insight_type == "What-If Scenario Analysis":
@@ -123,12 +127,27 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
             " Create additional features from the dataset if you feel they can help with the analysis."
             f" Provide specific and tangible insights on how this decrease would affect the {factor} or any of the other fields in the dataset."
             " Avoid generic statements and focus on concrete data-driven insights."
-            " Ensure the analysis is relevant to a CFO, VP of Finance, or Director of Finance, focusing on strategic decisions and business impact."
+            " Ensure the analysis is relevant, focusing on strategic decisions and impact."
             " Please avoid any basic descriptive analytics."
             " Focus only on the impacts without providing any conclusions, recommendations, or key metrics."
             " Do not include conclusions, recommendations, or key metrics."
             " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
-            " Do not provide the Data Quality Observations section or any descriptive analytics."
+            " Do not provide the Data Quality Observations section, Data Consistency, Duplication Check or descriptive analytics."
+        )
+
+    elif insight_type == "Region Analysis":
+        prompt += (
+            " Perform a detailed region analysis focusing on the different fields such as City, State, District, Country, Municipal, Zone, and Municipality."
+            " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
+            " If necessary, aggregate or group the data by relevant regional variables for analysis."
+            " Create additional features from the dataset if you feel they can help with the analysis."
+            " Include details such as regional performance, regional trends, and significant differences between regions."
+            " Specifically, identify key areas of high and low performance, highlight significant changes in key metrics across regions,"
+            " and provide insights on how regional differences impact overall performance."
+            " Provide specific insights based on the identified regional differences."
+            " Ensure the insights are concise and relevant, focusing on strategic decisions and impact."
+            " Please avoid any basic descriptive analytics."
+            " Do not provide the Data Quality Observations section, Data Consistency, Duplication Check or descriptive analytics."
         )
 
     attempt = 0
@@ -177,6 +196,7 @@ if uploaded_files:
                         st.session_state[f'df_{uploaded_file.name}_{selected_sheet}'] = df
         elif file_extension == 'csv':
             with st.spinner(f'Loading data from {uploaded_file.name}...'):
+                # Load the CSV file
                 df = pd.read_csv(uploaded_file)
                 dataframes.append(df)
                 st.session_state[f'df_{uploaded_file.name}'] = df
@@ -203,14 +223,26 @@ else:
 if df is not None:
     # Convert date fields to datetime and sort
     date_column = None
+
     if 'Year' in df.columns:
-        df['Year'] = pd.to_numeric(df['Year'], errors='coerce')
+        df['Year'] = df['Year'].astype(int)
         df = df.sort_values(by='Year')
         date_column = 'Year'
-    elif 'Date' in df.columns:
-        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-        df = df.sort_values(by='Date')
-        date_column = 'Date'
+    else:
+        date_columns = [col for col in df.columns if 'date' in col.lower()]
+        if date_columns:
+            for col in date_columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+            # Sort by the first date column found
+            date_column = date_columns[0]
+            df = df.sort_values(by=date_column)
+    # Identify columns with 'Timestamp' in the name
+    timestamp_columns = [col for col in df.columns if 'timestamp' in col.lower()]
+    if timestamp_columns:
+        for col in timestamp_columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+        date_column = timestamp_columns[0]
+        df = df.sort_values(by=date_column)
     
     if len(df) > 700:
         df = df.head(700)
@@ -224,14 +256,14 @@ if 'df' in st.session_state:
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
     df.columns = df.columns.str.strip()
 
-    exclude_columns = ['Year', 'Date', 'Month Number', 'Month Name']
+    exclude_columns = ['Year', 'Date', 'Month Number', 'Month Name', 'Timestamp'] + date_columns if 'date_columns' in locals() else []
 
     numeric_columns = []
     for col in df.columns:
         if col not in exclude_columns:
             first_value = df[col].iloc[0]
             if not any(c.isalpha() for c in str(first_value)):
-                df[col] = df[col].apply(lambda x: re.sub(r'[^\d.-]', '', str(x)).split('.')[0])
+                df[col] = df[col].apply(lambda x: re.sub(r'[^\d.-]', '', str(x)))
                 df[col] = pd.to_numeric(df[col], errors='coerce')
                 numeric_columns.append(col)
 
@@ -253,8 +285,9 @@ if 'df' in st.session_state:
 
     try:
         categorized_df = filtered_df.copy()
+        exclude_columns_for_labels = ['Year'] 
         for col in numeric_columns:
-            categorized_df[col] = categorize_values(filtered_df[col])
+            categorized_df[col] = categorize_values(filtered_df[col], exclude_columns_for_labels)
 
         encoded_df = filtered_df.copy()
         for col in filtered_df.columns:
@@ -274,16 +307,33 @@ if 'df' in st.session_state:
 
         available_insights = ["General Insights"]
 
-        trend_columns = {'Date', 'Month Number', 'Month Name', 'Year'}
-        if any(col in df.columns for col in trend_columns):
+        trend_columns = {'Date', 'date',
+                         'Month', 'month', 
+                         'Month Number', 'month number', 
+                         'Month Name', 'month name', 
+                         'Year', 'year', 
+                         'Timestamp', 'timestamp'}
+        if any(any(col in column_name for col in trend_columns) for column_name in df.columns):
             available_insights.append("Trend Analysis")
 
-        key_drivers_columns = {'Gross Sales', 'Sales', 'Date', 'Profit'}
-        if any(col in df.columns for col in key_drivers_columns):
+        key_drivers_columns = {'Gross Sales', 'gross sales', 
+                               'Sales', 'sales',
+                               'Date','date',
+                               'Profit', 'profit'}
+        if any(any(col in column_name for col in key_drivers_columns) for column_name in df.columns):
             available_insights.append("Key Drivers of Revenue Growth")
 
+        regions_columns = {'State', 'state', 
+                           'City', 'city', 
+                           'District','district',  
+                           'Country', 'country',
+                           'Region', 'region',
+                           'Zone', 'zone'}
+        if any(any(col in column_name for col in regions_columns) for column_name in df.columns):
+            available_insights.append("Region Analysis")
+
         exclude_factors = {'Month Number', 'Month Name', 'Year'}
-        numeric_factors = [col for col in categorized_df.columns if set(categorized_df[col].unique()).issubset({'Below Avg', 'Avg', 'Above Avg'}) and col not in exclude_factors]
+        numeric_factors = [col for col in categorized_df.columns if set(categorized_df[col].unique()).issubset({'Much Below Avg', 'Below Avg', 'Avg', 'Above Avg', 'Much Above Avg'}) and col not in exclude_factors]
 
         if numeric_factors:
             available_insights.append("What-If Scenario Analysis")
