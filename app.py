@@ -176,6 +176,7 @@ st.title("Hi, I'm Bheem 🐳 - your data insights companion. I can generate insi
 st.markdown('<p style="font-size:14px; margin-top: 20px;">Bheem is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
 st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
 st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
+st.markdown("**Note:** **PLEASE** clean and format your data as much as possible before loading it to Bheem. This will make the analysis easier and faster to complete.")
 
 uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="ai_insights_upload")
 
