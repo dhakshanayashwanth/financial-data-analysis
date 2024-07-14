@@ -277,7 +277,7 @@ if 'df' in st.session_state:
         filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
 
     st.write("Original Data")
-    st.dataframe(filtered_df)
+    original_table = st.dataframe(filtered_df)
 
     try:
         categorized_df = filtered_df.copy()
@@ -299,7 +299,7 @@ if 'df' in st.session_state:
             combined_df[col] = categorized_df[col]
 
         st.write("Mapped and Categorized Data")
-        st.dataframe(combined_df)
+        mapped_table = st.dataframe(combined_df)
 
         available_insights = ["General Insights"]
 
@@ -366,7 +366,7 @@ if 'df' in st.session_state:
 
         with col2:
             st.markdown("**Ask a Question About Your Data**")
-            question = st.text_area("Enter your question for ChatGPT about your data:")
+            question = st.text_area("While ChatGPT will only use data from the Mapped and Categorized Data table, **PLEASE be mindful about the data you enter. Err on the side of caution and do not enter any sensitive data. Such as financial data.**")
             if st.button("Ask ChatGPT"):
                 with st.spinner('Generating response...'):
                     combined_df_str = combined_df.to_csv(index=False)
@@ -399,7 +399,22 @@ if 'df' in st.session_state:
             """, 
             unsafe_allow_html=True
         )
+
+        # Adding a tooltip to display the mapping when a cell is clicked
+        def display_mapping():
+            for col in filtered_df.columns:
+                unique_values = filtered_df[col].unique()
+                for value in unique_values:
+                    mapping = mappings.get(col, {}).get(value, 'N/A')
+                    st.markdown(f"**{value}** maps to **{mapping}**")
+
+        with st.sidebar:
+            st.markdown("### Selected Mapping")
+            selected_value = st.text_input("Enter value from Original Data:")
+            if selected_value:
+                display_mapping()
+
     except ValueError as e:
-        st.error(f"Please provide Beam with more data so he can give you your insights.")
+        st.error(f"Please provide Bheem with more data so he can give you your insights.")
 else:
     st.write("Please upload a file to proceed.")
