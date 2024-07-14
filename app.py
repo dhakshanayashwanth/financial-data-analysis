@@ -366,7 +366,13 @@ if 'df' in st.session_state:
 
         with col2:
             st.markdown("**Ask a Question About Your Data**")
-            question = st.text_area("While ChatGPT will only use data from the Mapped and Categorized Data table, **PLEASE be mindful about the data you enter. Err on the side of caution and do not enter any sensitive data. Such as financial data.**")
+            st.markdown("ChatGPT will only use data from the Mapped and Categorized Data table.")
+            st.markdown("**PLEASE be mindful about the data you enter. Err on the side of caution and do not enter any sensitive data. Such as financial data.**")
+            st.markdown("To ask a question about a specific value, enter its Mapped and Categorized Data value. You can find it in the Selected Mapping")
+            st.markdown("For example, if you wanted to find the value for Indore you would enter it into the Selected Mapping, which would produce a value such as 44592FF6 and then use that to ask ChatGTP a question.")
+            st.markdown("**A sample question could be**: Which zones in 44592FF6 are performing the best? And which ones need more investment?")
+            st.markdown("We wouldn't use Indore in the question but its mapped value of 44592FF6. This prevents ChatGPT from viewing our")
+            question = st.text_area("")
             if st.button("Ask ChatGPT"):
                 with st.spinner('Generating response...'):
                     combined_df_str = combined_df.to_csv(index=False)
@@ -401,18 +407,17 @@ if 'df' in st.session_state:
         )
 
         # Adding a tooltip to display the mapping when a cell is clicked
-        def display_mapping():
+        def display_mapping(selected_value):
             for col in filtered_df.columns:
-                unique_values = filtered_df[col].unique()
-                for value in unique_values:
-                    mapping = mappings.get(col, {}).get(value, 'N/A')
-                    st.markdown(f"**{value}** maps to **{mapping}**")
+                mapping = mappings.get(col, {}).get(selected_value, 'N/A')
+                if mapping != 'N/A':
+                    st.markdown(f"**{selected_value}** maps to **{mapping}**")
 
         with st.sidebar:
             st.markdown("### Selected Mapping")
             selected_value = st.text_input("Enter value from Original Data:")
             if selected_value:
-                display_mapping()
+                display_mapping(selected_value)
 
     except ValueError as e:
         st.error(f"Please provide Bheem with more data so he can give you your insights.")
