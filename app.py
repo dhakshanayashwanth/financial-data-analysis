@@ -64,11 +64,13 @@ def generate_code(value, mapping_dict):
     return mapping_dict[value]
 
 # Function to reverse the mapping
-def reverse_mappings(df, mappings):
+def reverse_mappings(text, mappings):
     for col, mapping_dict in mappings.items():
-        reverse_dict = {v: k for k, v in mapping_dict.items() if '|' not in str(k)}
-        df[col] = df[col].map(reverse_dict).fillna(df[col])
-    return df
+        reverse_dict = {v: str(k) for k, v in mapping_dict.items() if '|' not in str(k)}
+        for code, original in reverse_dict.items():
+            if isinstance(code, str) and isinstance(original, str):
+                text = text.replace(code, original)
+    return text
 
 # Function to get insights from OpenAI with exponential backoff
 def get_insights_from_openai(data_str, model, insight_type, scenario=None, retries=5):
@@ -172,6 +174,8 @@ mappings = load_mappings()
 
 st.title("Hi, I'm Bheem 🐳 - your data insights companion. I can generate insights 🔍 and recommendations from your data in 60 seconds or less.")
 st.markdown('<p style="font-size:14px; margin-top: 20px;">Bheem is powered by the latest version of ChatGPT: 4o and does not train on any of your data.</p>', unsafe_allow_html=True)
+st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below.")
+st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
 
 uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="ai_insights_upload")
 
@@ -277,7 +281,7 @@ if 'df' in st.session_state:
         filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
 
     st.write("Original Data")
-    original_table = st.dataframe(filtered_df)
+    st.dataframe(filtered_df)
 
     try:
         categorized_df = filtered_df.copy()
@@ -299,7 +303,7 @@ if 'df' in st.session_state:
             combined_df[col] = categorized_df[col]
 
         st.write("Mapped and Categorized Data")
-        mapped_table = st.dataframe(combined_df)
+        st.dataframe(combined_df)
 
         available_insights = ["General Insights"]
 
@@ -334,18 +338,16 @@ if 'df' in st.session_state:
         if numeric_factors:
             available_insights.append("What-If Scenario Analysis")
 
+        selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
+
         scenario = None
+        if selected_insight == "What-If Scenario Analysis":
+            factor = st.selectbox("Select the factor to change:", numeric_factors, key="what_if_factor")
+            change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
+            scenario = {"factor": factor, "change": change}
 
-        # Add a section for asking specific questions about the data
-        st.markdown("## Insights and Q&A Section")
-
-        # Define two columns for the layout
-        col1, col2 = st.columns([1, 1])
-
-        with col1:
-            st.markdown("**Please select the type of insights you would like to see and wait 30-60 seconds for the insights to generate:**")
-            selected_insight = st.selectbox("", available_insights)
-            if st.button("Perform Analysis"):
+        if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
+            if st.button("Perform Analysis", key="perform_analysis"):
                 progress_bar = st.progress(0)
                 with st.spinner('Generating insights, please wait...'):
                     combined_df_str = combined_df.to_csv(index=False)
@@ -361,65 +363,7 @@ if 'df' in st.session_state:
                     decoded_insights = reverse_mappings(insights, mappings)
                     st.markdown(decoded_insights)
                     progress_bar.progress(100)
-
-        question_history = st.session_state.get('question_history', [])
-
-        with col2:
-            st.markdown("**Ask a Question About Your Data**")
-            st.markdown("ChatGPT will only use data from the Mapped and Categorized Data table.")
-            st.markdown("**PLEASE be mindful about the data you enter. Err on the side of caution and do not enter any sensitive data. Such as financial data.**")
-            st.markdown("To ask a question about a specific value, enter its Mapped and Categorized Data value. You can find it in the Selected Mapping")
-            st.markdown("For example, if you wanted to find the value for Indore you would enter it into the Selected Mapping, which would produce a value such as 44592FF6 and then use that to ask ChatGTP a question.")
-            st.markdown("**A sample question could be**: Which zones in 44592FF6 are performing the best? And which ones need more investment?")
-            st.markdown("We wouldn't use Indore in the question but its mapped value of 44592FF6. This prevents ChatGPT from viewing our")
-            question = st.text_area("")
-            if st.button("Ask ChatGPT"):
-                with st.spinner('Generating response...'):
-                    combined_df_str = combined_df.to_csv(index=False)
-                    prompt = f"Here is the dataset:\n{combined_df_str}\nQuestion: {question}\nPlease provide a detailed and insightful response based on the dataset provided."
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4",
-                        messages=[
-                            {"role": "system", "content": "You are an AI data analyst."},
-                            {"role": "user", "content": prompt}
-                        ]
-                    )
-                    answer = response['choices'][0]['message']['content']
-                    question_history.append({"question": question, "answer": answer})
-                    st.session_state['question_history'] = question_history
-
-        if question_history:
-            st.markdown("### Question and Answers")
-            for qna in question_history:
-                st.markdown(f"**Q:** {qna['question']}")
-                st.markdown(f"**A:** {qna['answer']}")
-                st.markdown("---")
-
-        # Adjust column layout to ensure proper alignment
-        st.markdown(
-            """
-            <style>
-            .css-1lcbmhc { margin-bottom: 0.5rem; }
-            .css-12oz5g7 { margin-top: -2rem; }
-            </style>
-            """, 
-            unsafe_allow_html=True
-        )
-
-        # Adding a tooltip to display the mapping when a cell is clicked
-        def display_mapping(selected_value):
-            for col in filtered_df.columns:
-                mapping = mappings.get(col, {}).get(selected_value, 'N/A')
-                if mapping != 'N/A':
-                    st.markdown(f"**{selected_value}** maps to **{mapping}**")
-
-        with st.sidebar:
-            st.markdown("### Selected Mapping")
-            selected_value = st.text_input("Enter value from Original Data:")
-            if selected_value:
-                display_mapping(selected_value)
-
     except ValueError as e:
-        st.error(f"Please provide Bheem with more data so he can give you your insights.")
+        st.error(f"Please provide Beam with more data so he can give you your insights.")
 else:
     st.write("Please upload a file to proceed.")
