@@ -362,13 +362,15 @@ if 'df' in st.session_state:
                     st.markdown(decoded_insights)
                     progress_bar.progress(100)
 
+        question_history = st.session_state.get('question_history', [])
+
         with col2:
             st.markdown("**Ask a Question About Your Data**")
-            question = st.text_area("Enter your question for ChatGPT about your data:", height=80)
+            question = st.text_area("Enter your question for ChatGPT about your data:")
             if st.button("Ask ChatGPT"):
-                combined_df_str = combined_df.to_csv(index=False)
-                prompt = f"Here is the dataset:\n{combined_df_str}\nQuestion: {question}\nPlease provide a detailed and insightful response based on the dataset provided."
-                with st.spinner('Fetching response from ChatGPT, please wait...'):
+                with st.spinner('Generating response...'):
+                    combined_df_str = combined_df.to_csv(index=False)
+                    prompt = f"Here is the dataset:\n{combined_df_str}\nQuestion: {question}\nPlease provide a detailed and insightful response based on the dataset provided."
                     response = openai.ChatCompletion.create(
                         model="gpt-4",
                         messages=[
@@ -376,15 +378,16 @@ if 'df' in st.session_state:
                             {"role": "user", "content": prompt}
                         ]
                     )
-                if 'questions' not in st.session_state:
-                    st.session_state['questions'] = []
-                if 'responses' not in st.session_state:
-                    st.session_state['responses'] = []
-                st.session_state['questions'].append(question)
-                st.session_state['responses'].append(response['choices'][0]['message']['content'])
-                for q, r in zip(st.session_state['questions'], st.session_state['responses']):
-                    st.markdown(f"**Q: {q}**")
-                    st.markdown(f"**A:** {r}")
+                    answer = response['choices'][0]['message']['content']
+                    question_history.append({"question": question, "answer": answer})
+                    st.session_state['question_history'] = question_history
+
+        if question_history:
+            st.markdown("### Question and Answers")
+            for qna in question_history:
+                st.markdown(f"**Q:** {qna['question']}")
+                st.markdown(f"**A:** {qna['answer']}")
+                st.markdown("---")
 
         # Adjust column layout to ensure proper alignment
         st.markdown(
