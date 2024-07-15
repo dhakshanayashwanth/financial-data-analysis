@@ -410,10 +410,10 @@ if 'data_confirmed' in st.session_state and st.session_state['data_confirmed']:
 else:
     st.write("Please upload a file to proceed.")
 
-## FIX 1
+## NEEDS TO BE FIXED 1
 ## if another analysis type is selected for the same dataset, the previous analysis isnt produced instead
 ## chatgpt isnt pinged a 2nd time for the same dataset to present the 1st row of data
 
-## FIX 2
+## ## NEEDS TO BE FIXED 2
 ## if another dataset is loaded, we want to esnure 
 ## that chatgpt is pinged to present the 1st row of data
