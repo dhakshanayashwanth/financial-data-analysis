@@ -7,6 +7,7 @@ import json
 import uuid
 import time
 import os
+import io
 from dotenv import load_dotenv
 import plotly.express as px
 
@@ -78,7 +79,7 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
 
     if insight_type == "General Insights":
         prompt += (
-            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " You are a sr. data analyst with 15 years of analytics experience."
             " Provide general insights from the dataset."
             " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
             " If necessary, aggregate or group the data by relevant variables for analysis."
@@ -90,14 +91,13 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
 
     elif insight_type == "Trend Analysis":
         prompt += (
-            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " You are a sr. data analyst with 15 years of analytics experience."
             " Perform a detailed trend analysis focusing on identifying and analyzing trends over time."
             " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
             " If necessary, aggregate or group the data by relevant variables for analysis."
             " Create additional features from the dataset if you feel they can help with the analysis."
             " Include details such as monthly or quarterly trends, yearly, seasonal patterns, and year-over-year comparisons."
-            " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics,"
-            " and provide insights on sales performance by segment and product."
+            " Specifically, identify key drivers of revenue growth or decline, highlight significant changes in key metrics."
             " Provide specific insights based on the identified trends."
             " Ensure the insights are concise and relevant, focusing on strategic decisions and impact."
             " Please avoid any basic descriptive analytics."
@@ -107,7 +107,7 @@ def get_insights_from_openai(data_str, model, insight_type, scenario=None, retri
 
     elif insight_type == "Key Drivers of Revenue Growth":
         prompt += (
-            " You are the Sr. Director of Finance at Indeed with 15 years of experience in finance, strategy, and analytics."
+            " You are a sr. data analyst with 15 years of analytics experience."
             " Remove duplicate data, if any exist. Check for any inconsistencies or errors in the data and correct them."
             " If necessary, aggregate or group the data by relevant variables for analysis."
             " Create additional features from the dataset if you feel they can help with the analysis."
@@ -178,6 +178,13 @@ st.subheader("To begin, please upload 📑 your Google Sheet or CSV file below."
 st.markdown("**Note:** The most data ChatGPT can analyze is 700 rows or around 103KB.")
 
 uploaded_files = st.file_uploader("Please choose CSV or Google Sheet files.", type=['csv', 'xlsx'], accept_multiple_files=True, key="ai_insights_upload")
+
+# Clear session state if new files are uploaded
+if 'uploaded_files' in st.session_state:
+    if st.session_state['uploaded_files'] != uploaded_files:
+        st.session_state.clear()
+
+st.session_state['uploaded_files'] = uploaded_files
 
 dataframes = []
 
@@ -305,6 +312,13 @@ if 'df' in st.session_state:
         st.write("Mapped and Categorized Data")
         st.dataframe(combined_df)
 
+        if 'selected_insight' not in st.session_state:
+            st.session_state['selected_insight'] = None
+        if 'analysis_requested' not in st.session_state:
+            st.session_state['analysis_requested'] = False
+        if 'data_confirmed' not in st.session_state:
+            st.session_state['data_confirmed'] = False
+
         available_insights = ["General Insights"]
 
         trend_columns = {'Date', 'date',
@@ -338,7 +352,7 @@ if 'df' in st.session_state:
         if numeric_factors:
             available_insights.append("What-If Scenario Analysis")
 
-        selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight")
+        selected_insight = st.selectbox("Please select the type of insights you would like to see and wait 20-30 seconds for the insights to generate:", available_insights, key="selected_insight_widget")
 
         scenario = None
         if selected_insight == "What-If Scenario Analysis":
@@ -346,24 +360,52 @@ if 'df' in st.session_state:
             change = st.number_input("Enter the percentage change (You can enter negative numbers like -2 or positive numbers like 2):", min_value=-100, max_value=100, value=5, key="what_if_change")
             scenario = {"factor": factor, "change": change}
 
-        if selected_insight and (selected_insight != "What-If Scenario Analysis" or scenario):
-            if st.button("Perform Analysis", key="perform_analysis"):
-                progress_bar = st.progress(0)
-                with st.spinner('Generating insights, please wait...'):
-                    combined_df_str = combined_df.to_csv(index=False)
-                    for i in range(0, 50, 5):
-                        time.sleep(0.5)
-                        progress_bar.progress(i)
-                    insights = get_insights_from_openai(combined_df_str, model="gpt-4o", insight_type=selected_insight, scenario=scenario)
-                    for i in range(50, 100, 5):
-                        time.sleep(0.5)
-                        progress_bar.progress(i)
-                    if selected_insight != "What-If Scenario Analysis":
-                        st.markdown("**Conclusions and Recommendations**")
-                    decoded_insights = reverse_mappings(insights, mappings)
-                    st.markdown(decoded_insights)
-                    progress_bar.progress(100)
+        if st.button("Perform Analysis", key="perform_analysis"):
+            st.session_state['analysis_requested'] = True
+            st.session_state['data_str'] = combined_df.to_csv(index=False)
+            st.session_state['selected_insight'] = selected_insight
+            st.session_state['scenario'] = scenario
+
     except ValueError as e:
-        st.error(f"Please provide Beam with more data so he can give you your insights.")
+        st.error(f"Please provide Bheem with more data so he can give you your insights.")
+
+if 'analysis_requested' in st.session_state and st.session_state['analysis_requested']:
+    st.write("Confirm the data below before proceeding with the analysis.")
+    st.dataframe(pd.read_csv(io.StringIO(st.session_state['data_str'])))
+
+    top_row = pd.read_csv(io.StringIO(st.session_state['data_str'])).head(1)
+    data_str = top_row.to_csv(index=False)
+    display_data_prompt = f"Can you please produce a tabular version of the dataset you can see?\n{data_str}"
+    with st.spinner('Verifying the dataset with ChatGPT, please wait...'):
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an AI data analyst."},
+                {"role": "user", "content": display_data_prompt}
+            ]
+        )
+    data_as_seen_by_chatgpt = response['choices'][0]['message']['content']
+    st.write("Data as seen by ChatGPT:")
+    st.text(data_as_seen_by_chatgpt)
+
+    if st.button("Confirm Data", key="confirm_data"):
+        st.session_state['data_confirmed'] = True
+
+if 'data_confirmed' in st.session_state and st.session_state['data_confirmed']:
+    progress_bar = st.progress(0)
+    with st.spinner('Generating insights, please wait...'):
+        for i in range(0, 50, 5):
+            time.sleep(0.5)
+            progress_bar.progress(i)
+        insights = get_insights_from_openai(st.session_state['data_str'], model="gpt-4o", insight_type=st.session_state['selected_insight'], scenario=st.session_state['scenario'])
+        for i in range(50, 100, 5):
+            time.sleep(0.5)
+            progress_bar.progress(i)
+        if st.session_state['selected_insight'] != "What-If Scenario Analysis":
+            st.markdown("**Conclusions and Recommendations**")
+        decoded_insights = reverse_mappings(insights, mappings)
+        st.markdown(decoded_insights)
+        progress_bar.progress(100)
+
 else:
     st.write("Please upload a file to proceed.")
