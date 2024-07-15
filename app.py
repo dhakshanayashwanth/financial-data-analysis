@@ -263,7 +263,7 @@ if 'df' in st.session_state:
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
     df.columns = df.columns.str.strip()
 
-    exclude_columns = ['Year', 'Date', 'Month Number', 'Month Name', 'Timestamp'] + date_columns if 'date_columns' in locals() else []
+    exclude_columns = ['Year', 'Date', 'Month', 'Month Number', 'Month Name', 'Timestamp'] + date_columns if 'date_columns' in locals() else []
 
     numeric_columns = []
     for col in df.columns:
@@ -409,3 +409,11 @@ if 'data_confirmed' in st.session_state and st.session_state['data_confirmed']:
 
 else:
     st.write("Please upload a file to proceed.")
+
+## FIX 1
+## if another analysis type is selected for the same dataset, the previous analysis isnt produced instead
+## chatgpt isnt pinged a 2nd time for the same dataset to present the 1st row of data
+
+## FIX 2
+## if another dataset is loaded, we want to esnure 
+## that chatgpt is pinged to present the 1st row of data
