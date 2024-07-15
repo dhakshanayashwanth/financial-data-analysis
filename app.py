@@ -318,6 +318,8 @@ if 'df' in st.session_state:
             st.session_state['analysis_requested'] = False
         if 'data_confirmed' not in st.session_state:
             st.session_state['data_confirmed'] = False
+        if 'data_confirmed_for_question' not in st.session_state:
+            st.session_state['data_confirmed_for_question'] = False
 
         available_insights = ["General Insights"]
 
@@ -366,6 +368,25 @@ if 'df' in st.session_state:
             st.session_state['selected_insight'] = selected_insight
             st.session_state['scenario'] = scenario
 
+        if st.button("Or Ask ChatGPT a Question About Your Data", key="ask_question"):
+            st.session_state['analysis_requested'] = False
+            st.session_state['data_confirmed_for_question'] = True
+            st.session_state['data_str'] = combined_df.to_csv(index=False)
+            top_row = pd.read_csv(io.StringIO(st.session_state['data_str'])).head(1)
+            data_str = top_row.to_csv(index=False)
+            display_data_prompt = f"Can you please produce a tabular version of the dataset you can see?\n{data_str}"
+            with st.spinner('Verifying the dataset with ChatGPT, please wait...'):
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "You are an AI data analyst."},
+                        {"role": "user", "content": display_data_prompt}
+                    ]
+                )
+            data_as_seen_by_chatgpt = response['choices'][0]['message']['content']
+            st.write("Data as seen by ChatGPT:")
+            st.text(data_as_seen_by_chatgpt)
+
     except ValueError as e:
         st.error(f"Please provide Bheem with more data so he can give you your insights.")
 
@@ -407,13 +428,50 @@ if 'data_confirmed' in st.session_state and st.session_state['data_confirmed']:
         st.markdown(decoded_insights)
         progress_bar.progress(100)
 
+elif 'data_confirmed_for_question' in st.session_state and st.session_state['data_confirmed_for_question']:
+    if st.button("Confirm Data", key="confirm_data_for_question"):
+        st.session_state['data_confirmed_for_question_final'] = True
+
+if 'data_confirmed_for_question_final' in st.session_state and st.session_state['data_confirmed_for_question_final']:
+    question = st.text_area("Type your question about the data:", key="user_question_input")
+
+    if st.button("Submit Question"):
+        st.session_state['user_question_state'] = question  # Use a different key for session state
+        # Convert user question using mappings
+        for col, mapping_dict in mappings.items():
+            for original_value, code in mapping_dict.items():
+                question = question.replace(str(original_value), code)
+
+        question_prompt = f"The dataset has been mapped and categorized as follows:\n{st.session_state['data_str']}\n\nUser's question: {question}"
+        
+        with st.spinner('Asking ChatGPT, please wait...'):
+            response = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an AI data analyst."},
+                    {"role": "user", "content": question_prompt}
+                ]
+            )
+        answer = response['choices'][0]['message']['content']
+
+        # Decode the answer
+        decoded_answer = reverse_mappings(answer, mappings)
+        st.markdown(decoded_answer)
+
 else:
-    st.write("Please upload a file to proceed.")
+    st.write("")
+
 
 ## NEEDS TO BE FIXED 1
+## a user types in a question and chatgpt answers it for them
+
+## NEEDS TO BE FIXED 2
 ## if another analysis type is selected for the same dataset, the previous analysis isnt produced instead
 ## chatgpt isnt pinged a 2nd time for the same dataset to present the 1st row of data
 
-## ## NEEDS TO BE FIXED 2
-## if another dataset is loaded, we want to esnure 
+## ## NEEDS TO BE FIXED 3
+## if another dataset is loaded, we want to ensnure 
 ## that chatgpt is pinged to present the 1st row of data
+
+## NEEDS TO BE FIXED 4
+## add in a few use cases
